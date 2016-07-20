@@ -4,8 +4,10 @@ extern crate semver;
 
 use std::env;
 use std::io::prelude::*;
-use clap::{App, AppSettings, SubCommand, Arg, ArgGroup, Values};
+use std::ffi::OsStr;
 use std::process::{exit, Command, Stdio};
+use std::borrow::Cow;
+use clap::{App, AppSettings, SubCommand, Arg, ArgGroup, Values, OsValues, ArgMatches};
 use semver::{Version, VersionReq, Identifier, ReqParseError};
 
 /// Information on the rustc compiler version in this environment
@@ -69,18 +71,14 @@ impl RustCInfo {
     }
 
     /// Do any of the channel values match?
-    fn matches_any_channels<'a, 'b>(&'a self,
-                                    channels: Option<Values<'b>>,
-                                    when_none: bool)
-                                    -> bool {
-        channels.map_or(when_none,
+    fn matches_any_channels<'a, 'b>(&'a self, channels: Option<Values<'b>>) -> bool {
+        channels.map_or(true,
                         |mut channels| channels.any(|ch| self.matches_channel(ch)))
     }
 
     /// Do any of the version values match?
     fn matches_any_versions<'a, 'b>(&'a self,
-                                    versions: Option<Values<'b>>,
-                                    when_none: bool)
+                                    versions: Option<Values<'b>>)
                                     -> Result<bool, ReqParseError> {
         match versions {
             Some(vers) => {
@@ -91,7 +89,7 @@ impl RustCInfo {
                 }
                 Ok(false)
             }
-            None => Ok(when_none),
+            None => Ok(true),
         }
     }
 }
@@ -129,12 +127,12 @@ impl<'a> EnvVarReq<'a> {
 }
 
 /// Do any of the environment variables exist?
-fn any_env_vars_exist<'a>(vars: Option<Values<'a>>, when_none: bool) -> bool {
-    vars.map_or(when_none, |mut vars| vars.any(|v| env::var_os(v).is_some()))
+fn any_env_vars_exist<'a>(vars: Option<OsValues<'a>>) -> bool {
+    vars.map_or(true, |mut vars| vars.any(|v| env::var_os(v).is_some()))
 }
 
 /// Do any of the environment variable values match?
-fn matches_any_env_vars<'a>(vars: Option<Values<'a>>, when_none: bool) -> Result<bool, String> {
+fn matches_any_env_vars<'a>(vars: Option<Values<'a>>) -> Result<bool, String> {
     match vars {
         Some(v) => {
             for var in v {
@@ -145,7 +143,49 @@ fn matches_any_env_vars<'a>(vars: Option<Values<'a>>, when_none: bool) -> Result
             }
             Ok(false)
         }
-        None => Ok(when_none),
+        None => Ok(true),
+    }
+}
+
+/// Do all the command line options match?
+fn options_match<'a>(sub: &'a ArgMatches<'a>) -> bool {
+    // Query rustc version
+    let rustc_info = RustCInfo::get_info();
+
+    // Do all the provided match options match the current compiler and environment?
+    let env_matches = matches_any_env_vars(sub.values_of("ENV-VARIABLE=VALUE"));
+    if env_matches.is_err() {
+        writeln!(std::io::stderr(), "{}", env_matches.unwrap_err()).ok();
+        writeln!(std::io::stderr(), "{}", sub.usage()).ok();
+        exit(1);
+    }
+
+    let vers_matches = rustc_info.matches_any_versions(sub.values_of("VERSION"));
+    if vers_matches.is_err() {
+        writeln!(std::io::stderr(), "{}", vers_matches.unwrap_err()).ok();
+        writeln!(std::io::stderr(), "{}", sub.usage()).ok();
+        exit(1);
+    }
+
+    rustc_info.matches_any_channels(sub.values_of("CHANNEL")) && vers_matches.unwrap() &&
+    any_env_vars_exist(sub.values_of_os("ENV-VARIABLE")) && env_matches.unwrap()
+}
+
+/// Get the cargo command and arguments
+fn get_cargo_command<'a>(sub: &'a ArgMatches<'a>) -> Vec<Cow<'a, OsStr>> {
+    match sub.subcommand() {
+        (external, Some(extm)) => {
+            let mut cmd: Vec<Cow<'a, OsStr>> = vec![Cow::Owned(From::from(external))];
+            if let Some(vals) = extm.values_of_os("") {
+                cmd.extend(vals.map(|s| Cow::Borrowed(s)));
+            }
+            cmd
+        }
+        _ => {
+            // No cargo subcommand was provided, print usage help message and exit
+            writeln!(std::io::stderr(), "{}", sub.usage()).ok();
+            exit(1);
+        }
     }
 }
 
@@ -157,7 +197,7 @@ fn main() {
                                     "version and environment."))
                     .version(crate_version!())
                     .setting(AppSettings::SubcommandRequiredElseHelp)
-                    //.setting(AppSettings::GlobalVersion)
+                    .setting(AppSettings::GlobalVersion)
                     .subcommand(SubCommand::with_name("when")
                         .usage("cargo when [OPTIONS] <CARGO SUBCOMMAND> [SUBCOMMAND OPTIONS]")
                         .about(concat!("Runs subsequent cargo command only when the specified ",
@@ -215,6 +255,8 @@ fn main() {
                             .require_delimiter(true)
                         )
                     )
+                    // We don't use an alias even though args ar exact same because help is slightly
+                    // different and the help won't properly show 'unless' when used.
                     .subcommand(SubCommand::with_name("unless")
                         .usage("cargo unless [OPTIONS] <CARGO SUBCOMMAND> [SUBCOMMAND OPTIONS]")
                         .about(concat!("Runs subsequent cargo command except when the specified ",
@@ -273,85 +315,18 @@ fn main() {
                         )
                     ).get_matches();
 
-    // Query rustc version
-    let rustc_info = RustCInfo::get_info();
-
     // Check conditions, gets command if matches, None if not
     let command = match matches.subcommand() {
         ("when", Some(sub)) => {
-            // Do all the provided match options match the current compiler and environment?
-            let env_matches = matches_any_env_vars(sub.values_of("ENV-VARIABLE=VALUE"), true);
-            if env_matches.is_err() {
-                writeln!(std::io::stderr(), "{}", env_matches.unwrap_err()).ok();
-                writeln!(std::io::stderr(), "{}", sub.usage()).ok();
-                exit(1);
-            }
-
-            let vers_matches = rustc_info.matches_any_versions(sub.values_of("VERSION"), true);
-            if vers_matches.is_err() {
-                writeln!(std::io::stderr(), "{}", vers_matches.unwrap_err()).ok();
-                writeln!(std::io::stderr(), "{}", sub.usage()).ok();
-                exit(1);
-            }
-
-            if rustc_info.matches_any_channels(sub.values_of("CHANNEL"), true) &&
-               vers_matches.unwrap_or(false) &&
-               any_env_vars_exist(sub.values_of("ENV-VARIABLE"), true) &&
-               env_matches.unwrap_or(false) {
-
-                match sub.subcommand() {
-                    (external, Some(extm)) => {
-                        let mut cmd = vec![external];
-                        if let Some(vals) = extm.values_of("") {
-                            cmd.extend(vals);
-                        }
-                        Some(cmd)
-                    }
-                    _ => {
-                        // No cargo subcommand was provided, print usage help message and exit
-                        writeln!(std::io::stderr(), "{}", sub.usage()).ok();
-                        exit(1);
-                    }
-                }
+            if options_match(sub) {
+                Some(get_cargo_command(sub))
             } else {
                 None
             }
         }
         ("unless", Some(sub)) => {
-            // Do none of the provided match options match the current compiler and environment?
-            let env_matches = matches_any_env_vars(sub.values_of("ENV-VARIABLE=VALUE"), false);
-            if env_matches.is_err() {
-                writeln!(std::io::stderr(), "{}", env_matches.unwrap_err()).ok();
-                writeln!(std::io::stderr(), "{}", sub.usage()).ok();
-                exit(1);
-            }
-
-            let vers_matches = rustc_info.matches_any_versions(sub.values_of("VERSION"), false);
-            if vers_matches.is_err() {
-                writeln!(std::io::stderr(), "{}", vers_matches.unwrap_err()).ok();
-                writeln!(std::io::stderr(), "{}", sub.usage()).ok();
-                exit(1);
-            }
-
-            if !rustc_info.matches_any_channels(sub.values_of("CHANNEL"), false) &&
-               !vers_matches.unwrap_or(true) &&
-               !any_env_vars_exist(sub.values_of("ENV-VARIABLE"), false) &&
-               !env_matches.unwrap_or(true) {
-
-                match sub.subcommand() {
-                    (external, Some(extm)) => {
-                        let mut cmd = vec![external];
-                        if let Some(vals) = extm.values_of("") {
-                            cmd.extend(vals);
-                        }
-                        Some(cmd)
-                    }
-                    _ => {
-                        // No cargo subcommand was provided, print usage help message and exit
-                        writeln!(std::io::stderr(), "{}", sub.usage()).ok();
-                        exit(1);
-                    }
-                }
+            if !options_match(sub) {
+                Some(get_cargo_command(sub))
             } else {
                 None
             }
