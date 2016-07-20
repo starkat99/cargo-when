@@ -91,7 +91,7 @@ impl RustCInfo {
                 }
                 Ok(false)
             }
-            None => Ok(when_none)
+            None => Ok(when_none),
         }
     }
 }
