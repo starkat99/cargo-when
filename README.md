@@ -98,6 +98,7 @@ cargo when --equals SHELL=bash test
 #### Example Travis CI Usage
 
 The cargo `when` command works well in a continuous integration environment like
+[Travis CI](https://travis-ci.org/). Here's one example scenario featuring nightly-only features and
 building docs only on stable for later upload:
 
 ```yaml
