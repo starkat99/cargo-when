@@ -8,27 +8,29 @@ commands can aid in continuous integration scripts, among other uses.
 Two cargo commands are provided, `when` and `unless`. `unless` is simply the negated condition of
 `when` and has the exact same options. From the `when` command line help documentation:
 
-  Runs subsequent cargo command only when the specified options match the current rust compiler
-  version and environment.
+```
+Runs subsequent cargo command only when the specified options match the current rust compiler
+version and environment.
 
-  USAGE:
-      cargo when [OPTIONS] <CARGO SUBCOMMAND> [SUBCOMMAND OPTIONS]
+USAGE:
+    cargo when [OPTIONS] <CARGO SUBCOMMAND> [SUBCOMMAND OPTIONS]
 
-  FLAGS:
-      -h, --help    Prints help information
+FLAGS:
+    -h, --help    Prints help information
 
-  OPTIONS:
-      -c, --channel <CHANNEL>              Matches rustc release channel(s) [values: stable, beta,
-                                              nightly]
-      -x, --exists <ENV-VARIABLE>          Matches when environment variable(s) exist
-      -e, --equals <ENV-VARIABLE=VALUE>    Matches when environment variable(s) equals specified
-                                              value(s), e.g. RUST_SRC_PATH=~/rustsrc
-      -v, --version <VERSION>              Matches rustc version(s) using same rules and version
-                                              syntax as Cargo
+OPTIONS:
+    -c, --channel <CHANNEL>              Matches rustc release channel(s) [values: stable, beta,
+                                            nightly]
+    -x, --exists <ENV-VARIABLE>          Matches when environment variable(s) exist
+    -e, --equals <ENV-VARIABLE=VALUE>    Matches when environment variable(s) equals specified
+                                            value(s), e.g. RUST_SRC_PATH=~/rustsrc
+    -v, --version <VERSION>              Matches rustc version(s) using same rules and version
+                                            syntax as Cargo
 
-  To specify a set of multiple possible matches for an option, separate the values by a comma and no
-  spaces. At least one match option is required. If multiple match options are present, each option
-  specifies an additional match requirement for any of the set of possible values for that option.
+To specify a set of multiple possible matches for an option, separate the values by a comma and no
+spaces. At least one match option is required. If multiple match options are present, each option
+specifies an additional match requirement for any of the set of possible values for that option.
+```
 
 ### Examples
 
