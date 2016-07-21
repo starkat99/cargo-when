@@ -1,4 +1,4 @@
-# cargo-when
+# cargo-when [![Build Status](https://travis-ci.org/starkat99/cargo-when.svg?branch=master)](https://travis-ci.org/starkat99/cargo-when) [![Build status](https://ci.appveyor.com/api/projects/status/i18at12ipmoq8rf2?svg=true)](https://ci.appveyor.com/project/starkat99/cargo-when) [![Crates.io](https://img.shields.io/crates/v/cargo-when.svg)](https://crates.io/crates/cargo-when/)
 
 Cargo commands run conditionally upon rustc version and environment. Cargo `when` and `unless`
 commands can aid in continuous integration scripts, among other uses.
@@ -116,10 +116,10 @@ before_script:
   cargo install cargo-when
 script:
 - |
-  cargo unless --channel=nightly build &&
-  cargo when --channel=nightly build --features nightly &&
-  cargo unless --channel=nightly test &&
-  cargo when --channel=nightly test --features nightly &&
+  cargo unless --channel=nightly build --verbose &&
+  cargo when --channel=nightly build --verbose --features nightly &&
+  cargo unless --channel=nightly test --verbose &&
+  cargo when --channel=nightly test --verbose --features nightly &&
   cargo when --channel=stable doc
 ```
 
