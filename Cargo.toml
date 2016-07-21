@@ -1,8 +1,8 @@
 [package]
 name = "cargo-when"
-version = "0.1.0"
+version = "0.0.1"
 authors = ["Kathryn Long <squeeself@gmail.com>"]
-description = "Cargo commands run conditionally upon rustc version and environment"
+description = "Cargo commands run conditionally upon rust compiler version and environment"
 repository = "https://github.com/starkat99/cargo-when.git"
 homepage = "https://github.com/starkat99/cargo-when"
 readme = "README.md"
@@ -10,5 +10,6 @@ keywords = ["cargo"]
 license = "MIT/Apache-2.0"
 
 [dependencies]
-clap = "2.8"
+#clap = "2.8"
+clap = {git = "https://github.com/starkat99/clap-rs.git", branch="fix-subcommand-name"}
 semver = "0.2.3"

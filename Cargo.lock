@@ -1,8 +1,8 @@
 [root]
 name = "cargo-when"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
- "clap 2.9.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clap 2.9.2 (git+https://github.com/starkat99/clap-rs.git?branch=fix-subcommand-name)",
  "semver 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -19,7 +19,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "clap"
 version = "2.9.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/starkat99/clap-rs.git?branch=fix-subcommand-name#9558033dab994fe3d264277c4f592a200f8a21ab"
 dependencies = [
  "ansi_term 0.7.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "bitflags 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
